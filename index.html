@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>邀请码生成</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    padding: 40px 20px;
+    text-align: center;
+    background: linear-gradient(135deg, #FBEFF0 0%, #F7F2EC 50%, #E8F0E8 100%);
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .box {
+    background: white;
+    padding: 36px 28px;
+    border-radius: 24px;
+    box-shadow: 0 8px 30px rgba(74, 63, 53, 0.08);
+    max-width: 400px;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+  .box::before {
+    content: "";
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(232,180,184,0.25) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  h2 {
+    color: #4A3F35;
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 3px;
+  }
+  .subtitle {
+    color: #8A9E8C;
+    font-size: 12px;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+  }
+  .code {
+    font-size: 36px;
+    font-weight: bold;
+    letter-spacing: 8px;
+    color: #7A9E7E;
+    margin: 20px 0 24px 0;
+    font-family: "Menlo", "Courier New", monospace;
+    padding: 22px 16px;
+    background: #FDFBF6;
+    border-radius: 16px;
+    border: 1px dashed #C7D9C7;
+    word-break: break-all;
+    transition: all 0.2s;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .code.loading { color: #B5C9B7; font-size: 16px; letter-spacing: 2px; }
+  .code.error { color: #D9534F; font-size: 14px; letter-spacing: 1px; }
+  button {
+    background: linear-gradient(135deg, #A8C5A8, #7A9E7E);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 26px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: 500;
+    width: 100%;
+    margin-bottom: 10px;
+    transition: all 0.15s;
+    letter-spacing: 2px;
+    box-shadow: 0 4px 12px rgba(122,158,126,0.25);
+  }
+  button:active { opacity: 0.85; transform: scale(0.98); }
+  button:disabled { opacity: 0.5; }
+  .secondary {
+    background: white;
+    color: #D9A8B0;
+    border: 1.5px solid #E8B4B8;
+    box-shadow: none;
+  }
+  .copied {
+    color: #7A9E7E;
+    font-size: 13px;
+    height: 22px;
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+  .hint {
+    font-size: 12px;
+    color: #B5B5B5;
+    margin-top: 18px;
+    line-height: 1.8;
+    letter-spacing: 1px;
+  }
+  .modal-bg {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(74,63,53,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 100;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: white;
+    padding: 28px 24px;
+    border-radius: 20px;
+    max-width: 320px;
+    width: 100%;
+  }
+  .modal h3 { color: #4A3F35; margin: 0 0 16px 0; font-size: 16px; }
+  .modal input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #C7D9C7;
+    border-radius: 12px;
+    font-size: 14px;
+    margin-bottom: 14px;
+    outline: none;
+    font-family: inherit;
+  }
+  .modal input:focus { border-color: #7A9E7E; }
+  .footer {
+    margin-top: 20px;
+    font-size: 10px;
+    color: #C7D9C7;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h2>邀请码</h2>
+    <div class="subtitle">一隅界外 · 共叙朝夕</div>
+    <div class="code loading" id="code">生成中...</div>
+    <div class="copied" id="copied"></div>
+    <button onclick="copyCode()" id="copyBtn" disabled>📋 复制邀请码</button>
+    <button class="secondary" onclick="gen()">↻ 再生成一个</button>
+    <p class="hint">生成后已存入数据库<br>复制发给朋友即可</p>
+    <div class="footer">仅自己使用 · 请勿分享此页面</div>
+  </div>
+
+  <div class="modal-bg" id="modalBg">
+    <div class="modal">
+      <h3>首次使用请输入访问密码</h3>
+      <input type="password" id="pwdInput" placeholder="密码" autocomplete="off">
+      <button onclick="savePwd()">确定</button>
+    </div>
+  </div>
+
+  <script>
+    const SUPA_URL = 'https://sgvizwntfvdjtumruobs.supabase.co'
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNndml6d250ZnZkanR1bXJ1b2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjg2NDA3NjgsImV4cCI6MjA0NDIxNjc2OH0.xxx' // ⭐ 你的 anon key
+
+    // ⭐ 换成你的 secret（自己记好，不给别人）
+    const ADMIN_SECRET = 'jk8Xm2PqL9vN3wZ7bT5yaB3kLp9QzX7mN2vW'
+
+    let cachedSecret = localStorage.getItem('invite_secret') || ''
+
+    function savePwd() {
+      const v = document.getElementById('pwdInput').value.trim()
+      if (!v) return
+      cachedSecret = v
+      localStorage.setItem('invite_secret', v)
+      document.getElementById('modalBg').classList.remove('show')
+      gen()
+    }
+
+    async function gen() {
+      const el = document.getElementById('code')
+      const copyBtn = document.getElementById('copyBtn')
+
+      if (!cachedSecret) {
+        document.getElementById('modalBg').classList.add('show')
+        document.getElementById('pwdInput').focus()
+        return
+      }
+
+      el.className = 'code loading'
+      el.innerText = '生成中...'
+      copyBtn.disabled = true
+
+      try {
+        const resp = await fetch(
+          `${SUPA_URL}/functions/v1/generate_invite?secret=${encodeURIComponent(cachedSecret)}`
+        )
+        const text = await resp.text()
+
+        if (text.trim() === 'Unauthorized') {
+          localStorage.removeItem('invite_secret')
+          cachedSecret = ''
+          el.className = 'code error'
+          el.innerText = '密码错误，请刷新重试'
+          document.getElementById('modalBg').classList.add('show')
+          return
+        }
+
+        const match = text.match(/JW[A-Z0-9]{6}/)
+        if (match) {
+          el.className = 'code'
+          el.innerText = match[0]
+          copyBtn.disabled = false
+        } else {
+          el.className = 'code error'
+          el.innerText = '生成失败'
+        }
+      } catch (e) {
+        el.className = 'code error'
+        el.innerText = '网络错误'
+      }
+    }
+
+    function copyCode() {
+      const code = document.getElementById('code').innerText.trim()
+      if (!code.startsWith('JW')) return
+      const done = () => {
+        const el = document.getElementById('copied')
+        el.innerText = '✅ 已复制到剪贴板'
+        setTimeout(() => el.innerText = '', 2000)
+      }
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(code).then(done)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = code
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+        done()
+      }
+    }
+
+    gen()
+  </script>
+</body>
+</html>
