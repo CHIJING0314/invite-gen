@@ -198,7 +198,7 @@ const SUPA_URL = 'https://api.jie-wai-xu-yu.asia'
 
       try {
         const resp = await fetch(
-          `${SUPA_URL}/functions/v1/generate_invite?secret=${encodeURIComponent(cachedSecret)}`
+          `${SUPA_URL}/generate_invite?secret=${encodeURIComponent(cachedSecret)}`
         )
         const text = await resp.text()
 
